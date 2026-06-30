@@ -47,12 +47,17 @@ export function countToLevel(count) {
 export function toCalendarData(readings) {
   const dayMap = byDay(readings)
   const dates = [...dayMap.keys()].map(parseDate)
-  if (dates.length === 0) return []
 
-  const minDate = new Date(Math.min(...dates))
-  const maxDate = new Date(Math.max(...dates))
-  const start = addDays(minDate, -7)
-  const end = addDays(maxDate, 7)
+  const today = new Date()
+  let start = addDays(today, -364)
+  let end = today
+
+  if (dates.length > 0) {
+    const minDate = new Date(Math.min(...dates))
+    const maxDate = new Date(Math.max(...dates))
+    if (minDate < start) start = minDate
+    if (maxDate > end) end = maxDate
+  }
 
   const result = []
   for (let cursor = new Date(start); cursor <= end; cursor = addDays(cursor, 1)) {
@@ -67,6 +72,20 @@ export function toCalendarData(readings) {
   }
 
   return result
+}
+
+export function dailySeries(readings, days = 30) {
+  const dayMap = byDay(readings)
+  const today = new Date()
+  const series = []
+
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const day = addDays(today, -i)
+    const key = formatDate(day)
+    series.push({ date: key, count: dayMap.get(key)?.count ?? 0 })
+  }
+
+  return series
 }
 
 export function totalReads(readings) {

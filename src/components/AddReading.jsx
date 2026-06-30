@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import { fetchPageMetadata, formatDate, isValidUrl } from '../lib/readings'
 
-export default function AddReading({ onAdd }) {
+export default function AddReading({ onAdd, onSubmitted }) {
   const [url, setUrl] = useState('')
   const [date, setDate] = useState(formatDate(new Date()))
   const [tags, setTags] = useState('')
@@ -99,19 +98,14 @@ export default function AddReading({ onAdd }) {
     setDate(formatDate(new Date()))
     setSuccess('Reading added.')
     setLoading(false)
+
+    if (onSubmitted) onSubmitted()
   }
 
   const showPreview = isValidUrl(url.trim()) && (fetchingMeta || title || hero || description)
 
   return (
-    <motion.section
-      className="add-reading"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      <h2>Log a reading</h2>
-      <form className="add-form" onSubmit={handleSubmit}>
+    <form className="add-form" onSubmit={handleSubmit}>
         <label className="field">
           <span>Link</span>
           <input
@@ -194,7 +188,6 @@ export default function AddReading({ onAdd }) {
         <button type="submit" className="submit-btn" disabled={loading || fetchingMeta}>
           {loading ? 'Adding...' : 'Add reading'}
         </button>
-      </form>
-    </motion.section>
+    </form>
   )
 }

@@ -15,31 +15,29 @@ function formatTooltip(date, entries) {
 
 export default function StreakCalendar({ readings, calendarData }) {
   const dayMap = useMemo(() => byDay(readings), [readings])
+  const hasReads = readings.length > 0
 
   return (
     <motion.section
-      className="calendar-section"
+      className="panel graph-panel"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.2 }}
     >
-      <h2>Reading activity</h2>
+      <h2 className="panel-title">Reading activity</h2>
       <div className="calendar-wrap">
-        {calendarData.length === 0 ? (
-          <p className="empty-state">No readings yet. Log your first link above.</p>
-        ) : (
-          <ActivityCalendar
+        <ActivityCalendar
           data={calendarData}
-          blockSize={12}
-          blockMargin={3}
+          blockSize={13}
+          blockMargin={4}
           fontSize={12}
           theme={{
-            light: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'],
-            dark: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'],
+            light: ['#262d3a', '#34507a', '#3f6db0', '#4f8fd6', '#73b2f0'],
+            dark: ['#262d3a', '#34507a', '#3f6db0', '#4f8fd6', '#73b2f0'],
           }}
           colorScheme="dark"
           labels={{
-            totalCount: '{{count}} reads in {{year}}',
+            totalCount: '{{count}} reads in the last year',
           }}
           renderBlock={(block, activity) => {
             const entries = dayMap.get(activity.date)?.entries ?? []
@@ -55,8 +53,10 @@ export default function StreakCalendar({ readings, calendarData }) {
             )
           }}
         />
-        )}
       </div>
+      {!hasReads ? (
+        <p className="calendar-caption">No readings yet — add your first to start your streak.</p>
+      ) : null}
     </motion.section>
   )
 }

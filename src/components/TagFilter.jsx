@@ -4,8 +4,8 @@ export default function TagFilter({ tags, activeTag, onSelect }) {
   if (tags.length === 0) return null
 
   return (
-    <section className="tag-filter">
-      <h2>Topics</h2>
+    <section className="panel tag-filter">
+      <h2 className="panel-title">Topics</h2>
       <div className="tag-list">
         <motion.button
           type="button"

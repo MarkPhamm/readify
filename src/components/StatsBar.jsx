@@ -45,12 +45,27 @@ function StatCard({ label, value, delay }) {
 }
 
 export default function StatsBar({ current, longest, total, tags }) {
+  const currentAnimated = useCountUp(current)
+
   return (
-    <section className="stats-bar">
-      <StatCard label="Current streak" value={current} delay={0} />
-      <StatCard label="Longest streak" value={longest} delay={0.08} />
-      <StatCard label="Total reads" value={total} delay={0.16} />
-      <StatCard label="Unique tags" value={tags} delay={0.24} />
-    </section>
+    <div className="hero-top">
+      <motion.div
+        className="streak-hero"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+      >
+        <span className="streak-hero-value">{currentAnimated}</span>
+        <span className="streak-hero-label">
+          {current === 1 ? 'day' : 'days'} current reading streak
+        </span>
+      </motion.div>
+
+      <div className="hero-stats">
+        <StatCard label="Longest streak" value={longest} delay={0.06} />
+        <StatCard label="Total reads" value={total} delay={0.12} />
+        <StatCard label="Unique tags" value={tags} delay={0.18} />
+      </div>
+    </div>
   )
 }
