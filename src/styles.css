@@ -259,6 +259,78 @@ a:hover {
   color: #3fb950;
 }
 
+.page-preview {
+  display: flex;
+  gap: 1rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.preview-loading {
+  margin: 0;
+  padding: 1rem;
+  color: #8b949e;
+  font-size: 0.9rem;
+}
+
+.preview-hero {
+  width: 140px;
+  min-height: 90px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.preview-hero.placeholder {
+  background: #21262d;
+}
+
+.preview-text {
+  padding: 0.85rem 0.85rem 0.85rem 0;
+  min-width: 0;
+}
+
+.preview-title {
+  margin: 0;
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.preview-description {
+  margin: 0.35rem 0 0;
+  color: #8b949e;
+  font-size: 0.9rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.timeline-card {
+  display: flex;
+  gap: 1rem;
+}
+
+.timeline-hero {
+  width: 120px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  border: 1px solid #30363d;
+}
+
+.timeline-body {
+  min-width: 0;
+}
+
+.timeline-description {
+  margin: 0.35rem 0 0;
+  color: #8b949e;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 720px) {
   .stats-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -271,5 +343,27 @@ a:hover {
 
   .field-row {
     grid-template-columns: 1fr;
+  }
+
+  .page-preview {
+    flex-direction: column;
+  }
+
+  .preview-hero {
+    width: 100%;
+    min-height: 140px;
+  }
+
+  .preview-text {
+    padding: 0 0.85rem 0.85rem;
+  }
+
+  .timeline-card {
+    flex-direction: column;
+  }
+
+  .timeline-hero {
+    width: 100%;
+    height: 160px;
   }
 }

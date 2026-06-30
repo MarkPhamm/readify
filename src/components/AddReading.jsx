@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { fetchTitle, formatDate, isValidUrl } from '../lib/readings'
+import { fetchPageMetadata, formatDate, isValidUrl } from '../lib/readings'
 
 export default function AddReading({ onAdd }) {
   const [url, setUrl] = useState('')
@@ -8,9 +8,42 @@ export default function AddReading({ onAdd }) {
   const [tags, setTags] = useState('')
   const [note, setNote] = useState('')
   const [title, setTitle] = useState('')
+  const [hero, setHero] = useState('')
+  const [description, setDescription] = useState('')
+  const [titleTouched, setTitleTouched] = useState(false)
+  const [fetchingMeta, setFetchingMeta] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  useEffect(() => {
+    const trimmedUrl = url.trim()
+    if (!isValidUrl(trimmedUrl)) {
+      setHero('')
+      setDescription('')
+      if (!titleTouched) setTitle('')
+      return undefined
+    }
+
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      setFetchingMeta(true)
+      setError('')
+
+      const metadata = await fetchPageMetadata(trimmedUrl)
+      if (cancelled) return
+
+      if (!titleTouched) setTitle(metadata.title)
+      setHero(metadata.hero)
+      setDescription(metadata.description)
+      setFetchingMeta(false)
+    }, 500)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [url, titleTouched])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -31,8 +64,14 @@ export default function AddReading({ onAdd }) {
     setLoading(true)
 
     let resolvedTitle = title.trim()
-    if (!resolvedTitle) {
-      resolvedTitle = await fetchTitle(trimmedUrl)
+    let resolvedHero = hero
+    let resolvedDescription = description
+
+    if (!resolvedTitle || !resolvedHero) {
+      const metadata = await fetchPageMetadata(trimmedUrl)
+      if (!resolvedTitle) resolvedTitle = metadata.title
+      if (!resolvedHero) resolvedHero = metadata.hero
+      if (!resolvedDescription) resolvedDescription = metadata.description
     }
 
     const tagList = tags
@@ -44,6 +83,8 @@ export default function AddReading({ onAdd }) {
       date,
       url: trimmedUrl,
       title: resolvedTitle,
+      hero: resolvedHero,
+      description: resolvedDescription,
       tags: tagList,
       note: note.trim(),
     })
@@ -52,10 +93,15 @@ export default function AddReading({ onAdd }) {
     setTags('')
     setNote('')
     setTitle('')
+    setHero('')
+    setDescription('')
+    setTitleTouched(false)
     setDate(formatDate(new Date()))
     setSuccess('Reading added.')
     setLoading(false)
   }
+
+  const showPreview = isValidUrl(url.trim()) && (fetchingMeta || title || hero || description)
 
   return (
     <motion.section
@@ -76,6 +122,26 @@ export default function AddReading({ onAdd }) {
             required
           />
         </label>
+
+        {showPreview ? (
+          <div className="page-preview">
+            {fetchingMeta ? (
+              <p className="preview-loading">Fetching page details...</p>
+            ) : (
+              <>
+                {hero ? (
+                  <img className="preview-hero" src={hero} alt="" />
+                ) : (
+                  <div className="preview-hero placeholder" />
+                )}
+                <div className="preview-text">
+                  <p className="preview-title">{title || 'Untitled page'}</p>
+                  {description ? <p className="preview-description">{description}</p> : null}
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
 
         <div className="field-row">
           <label className="field">
@@ -100,12 +166,15 @@ export default function AddReading({ onAdd }) {
         </div>
 
         <label className="field">
-          <span>Title (optional)</span>
+          <span>Title override (optional)</span>
           <input
             type="text"
             placeholder="Auto-fetched from the page"
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) => {
+              setTitleTouched(true)
+              setTitle(event.target.value)
+            }}
           />
         </label>
 
@@ -122,7 +191,7 @@ export default function AddReading({ onAdd }) {
         {error ? <p className="form-message error">{error}</p> : null}
         {success ? <p className="form-message success">{success}</p> : null}
 
-        <button type="submit" className="submit-btn" disabled={loading}>
+        <button type="submit" className="submit-btn" disabled={loading || fetchingMeta}>
           {loading ? 'Adding...' : 'Add reading'}
         </button>
       </form>

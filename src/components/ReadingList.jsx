@@ -27,16 +27,26 @@ export default function ReadingList({ readings }) {
             >
               <time className="timeline-date">{reading.date}</time>
               <div className="timeline-content">
-                <a href={reading.url} target="_blank" rel="noreferrer">
-                  {reading.title || reading.url}
-                </a>
-                {reading.note ? <p className="timeline-note">{reading.note}</p> : null}
-                <div className="timeline-tags">
-                  {(reading.tags ?? []).map((tag) => (
-                    <span key={tag} className="timeline-tag">
-                      {tag}
-                    </span>
-                  ))}
+                <div className="timeline-card">
+                  {reading.hero ? (
+                    <img className="timeline-hero" src={reading.hero} alt="" />
+                  ) : null}
+                  <div className="timeline-body">
+                    <a href={reading.url} target="_blank" rel="noreferrer">
+                      {reading.title || reading.url}
+                    </a>
+                    {reading.description ? (
+                      <p className="timeline-description">{reading.description}</p>
+                    ) : null}
+                    {reading.note ? <p className="timeline-note">{reading.note}</p> : null}
+                    <div className="timeline-tags">
+                      {(reading.tags ?? []).map((tag) => (
+                        <span key={tag} className="timeline-tag">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.li>

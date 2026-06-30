@@ -52,6 +52,8 @@ Entries live in `data/readings.json`:
   "date": "2026-06-29",
   "url": "https://example.com/article",
   "title": "Some Article",
+  "hero": "https://example.com/hero.jpg",
+  "description": "A short summary from the page",
   "tags": ["ml", "systems"],
   "note": ""
 }

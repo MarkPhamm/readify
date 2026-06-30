@@ -25,16 +25,6 @@ function isValidUrl(value) {
   }
 }
 
-function extractTitle(html) {
-  const ogMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
-  if (ogMatch?.[1]) return decodeEntities(ogMatch[1].trim())
-
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-  if (titleMatch?.[1]) return decodeEntities(titleMatch[1].trim())
-
-  return ''
-}
-
 function decodeEntities(value) {
   return value
     .replaceAll('&amp;', '&')
@@ -44,17 +34,64 @@ function decodeEntities(value) {
     .replaceAll('&#39;', "'")
 }
 
-async function fetchTitle(url) {
+function extractMetaContent(html, keys) {
+  for (const key of keys) {
+    const patterns = [
+      new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]+content=["']([^"']+)["']`, 'i'),
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${key}["']`, 'i'),
+    ]
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern)
+      if (match?.[1]) return decodeEntities(match[1].trim())
+    }
+  }
+
+  return ''
+}
+
+function resolveUrl(base, candidate) {
+  if (!candidate) return ''
+  try {
+    return new URL(candidate, base).href
+  } catch {
+    return candidate
+  }
+}
+
+function extractPageMetadata(html, pageUrl) {
+  const title =
+    extractMetaContent(html, ['og:title', 'twitter:title']) ||
+    (() => {
+      const match = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+      return match?.[1] ? decodeEntities(match[1].trim()) : ''
+    })()
+
+  const hero = resolveUrl(
+    pageUrl,
+    extractMetaContent(html, ['og:image', 'twitter:image']),
+  )
+
+  const description = extractMetaContent(html, [
+    'og:description',
+    'twitter:description',
+    'description',
+  ])
+
+  return { title, hero, description }
+}
+
+async function fetchPageMetadata(url) {
   try {
     const response = await fetch(url, {
       headers: { 'User-Agent': 'Readify/1.0' },
       signal: AbortSignal.timeout(8000),
     })
-    if (!response.ok) return ''
+    if (!response.ok) return { title: '', hero: '', description: '' }
     const html = await response.text()
-    return extractTitle(html)
+    return extractPageMetadata(html, url)
   } catch {
-    return ''
+    return { title: '', hero: '', description: '' }
   }
 }
 
@@ -98,19 +135,21 @@ async function main() {
 
     const note = (await rl.question('Note (optional): ')).trim()
 
-    console.log('Fetching page title...')
-    const fetchedTitle = await fetchTitle(urlInput)
-    const titlePrompt = fetchedTitle
-      ? `Title [${fetchedTitle}]: `
+    console.log('Fetching page metadata...')
+    const metadata = await fetchPageMetadata(urlInput)
+    const titlePrompt = metadata.title
+      ? `Title [${metadata.title}]: `
       : 'Title (optional): '
     const titleInput = (await rl.question(titlePrompt)).trim()
-    const title = titleInput || fetchedTitle
+    const title = titleInput || metadata.title
 
     const readings = await loadReadings()
     readings.push({
       date,
       url: urlInput,
       title,
+      hero: metadata.hero,
+      description: metadata.description,
       tags,
       note,
     })

@@ -25,25 +25,79 @@ function decodeEntities(value) {
     .replaceAll('&#39;', "'")
 }
 
-function extractTitle(html) {
-  const ogMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
-  if (ogMatch?.[1]) return decodeEntities(ogMatch[1].trim())
+function resolveUrl(base, candidate) {
+  if (!candidate) return ''
+  try {
+    return new URL(candidate, base).href
+  } catch {
+    return candidate
+  }
+}
 
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-  if (titleMatch?.[1]) return decodeEntities(titleMatch[1].trim())
+function extractMetaContent(html, keys) {
+  for (const key of keys) {
+    const patterns = [
+      new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]+content=["']([^"']+)["']`, 'i'),
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${key}["']`, 'i'),
+    ]
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern)
+      if (match?.[1]) return decodeEntities(match[1].trim())
+    }
+  }
 
   return ''
 }
 
-export async function fetchTitle(url) {
+export function extractPageMetadata(html, pageUrl) {
+  const title =
+    extractMetaContent(html, ['og:title', 'twitter:title']) ||
+    (() => {
+      const match = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+      return match?.[1] ? decodeEntities(match[1].trim()) : ''
+    })()
+
+  const hero = resolveUrl(
+    pageUrl,
+    extractMetaContent(html, ['og:image', 'twitter:image']),
+  )
+
+  const description = extractMetaContent(html, [
+    'og:description',
+    'twitter:description',
+    'description',
+  ])
+
+  return { title, hero, description }
+}
+
+async function fetchHtml(url) {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) })
-    if (!response.ok) return ''
-    const html = await response.text()
-    return extractTitle(html)
+    if (response.ok) return await response.text()
   } catch {
-    return ''
+    // direct fetch often blocked by CORS in the browser
   }
+
+  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+  const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(12000) })
+  if (!response.ok) throw new Error('Could not fetch page metadata')
+  return await response.text()
+}
+
+export async function fetchPageMetadata(url) {
+  try {
+    const html = await fetchHtml(url)
+    return extractPageMetadata(html, url)
+  } catch {
+    return { title: '', hero: '', description: '' }
+  }
+}
+
+export async function fetchTitle(url) {
+  const metadata = await fetchPageMetadata(url)
+  return metadata.title
 }
 
 function readingKey(reading) {
