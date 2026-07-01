@@ -16,8 +16,9 @@ export default function ReadingForm({ initialValue = null, onSubmit, onSubmitted
   const [title, setTitle] = useState(initialValue?.title ?? '')
   const [hero, setHero] = useState(initialValue?.hero ?? '')
   const [description, setDescription] = useState(initialValue?.description ?? '')
-  // In edit mode the title is prefilled, so treat it as user-owned from the start.
+  // In edit mode the title/image are prefilled, so treat them as user-owned.
   const [titleTouched, setTitleTouched] = useState(isEdit)
+  const [heroTouched, setHeroTouched] = useState(isEdit)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -25,13 +26,16 @@ export default function ReadingForm({ initialValue = null, onSubmit, onSubmitted
 
   // Sync auto-fetched metadata into the editable fields, but only when the URL
   // differs from the one we loaded — so editing a reading doesn't clobber its
-  // saved hero/description with a re-fetch of the same page.
+  // saved hero/description with a re-fetch of the same page. Never overwrite a
+  // field the user has typed into.
   useEffect(() => {
     if (url.trim() === initialUrl.trim()) return
-    setHero(metadata.hero)
     setDescription(metadata.description)
     if (!titleTouched) setTitle(metadata.title)
-  }, [metadata, url, initialUrl, titleTouched])
+    if (!heroTouched) setHero(metadata.hero)
+  }, [metadata, url, initialUrl, titleTouched, heroTouched])
+
+  const noImageFound = isValidUrl(url.trim()) && !fetching && heroTouched === false && !metadata.hero
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -160,6 +164,25 @@ export default function ReadingForm({ initialValue = null, onSubmit, onSubmitted
             setTitle(event.target.value)
           }}
         />
+      </label>
+
+      <label className="field" htmlFor="reading-image">
+        <span>Image URL (optional)</span>
+        <input
+          id="reading-image"
+          type="url"
+          placeholder="Auto-fetched — or paste an image link"
+          value={hero}
+          onChange={(event) => {
+            setHeroTouched(true)
+            setHero(event.target.value)
+          }}
+        />
+        {noImageFound ? (
+          <small className="field-hint">
+            No image found for this link — paste an image URL to set one.
+          </small>
+        ) : null}
       </label>
 
       <label className="field" htmlFor="reading-note">

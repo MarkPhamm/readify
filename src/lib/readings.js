@@ -67,27 +67,46 @@ export function extractPageMetadata(html, pageUrl) {
   return { title, hero, description }
 }
 
-async function fetchHtml(url) {
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) })
-    if (response.ok) return await response.text()
-  } catch {
-    // direct fetch often blocked by CORS in the browser
-  }
+// A browser can't fetch other origins directly (CORS), so we route through a
+// chain of public CORS proxies. Any single one is flaky (rate limits, timeouts,
+// slow on redirects), so we try them in order until one returns the real HTML.
+const PROXIES = [
+  { build: (url) => url, timeout: 7000 }, // direct — works for CORS-enabled pages
+  { build: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, timeout: 12000 },
+  { build: (url) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`, timeout: 12000 },
+  { build: (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`, timeout: 12000 },
+]
 
-  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
-  const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(12000) })
-  if (!response.ok) throw new Error('Could not fetch page metadata')
-  return await response.text()
+async function fetchViaProxy(proxiedUrl, timeout) {
+  const response = await fetch(proxiedUrl, { signal: AbortSignal.timeout(timeout) })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const html = await response.text()
+  // Proxy error bodies are tiny; a real page is large. Reject the junk.
+  if (html.length < 500) throw new Error('empty response')
+  return html
+}
+
+function metaScore(meta) {
+  return (meta.title ? 1 : 0) + (meta.hero ? 2 : 0) + (meta.description ? 1 : 0)
 }
 
 export async function fetchPageMetadata(url) {
-  try {
-    const html = await fetchHtml(url)
-    return extractPageMetadata(html, url)
-  } catch {
-    return { title: '', hero: '', description: '' }
+  let best = { title: '', hero: '', description: '' }
+
+  for (const proxy of PROXIES) {
+    try {
+      const html = await fetchViaProxy(proxy.build(url), proxy.timeout)
+      const meta = extractPageMetadata(html, url)
+      // A proxy that returns real HTML gives deterministic metadata, so the
+      // first one with a title or image is our answer — stop early.
+      if (meta.title || meta.hero) return meta
+      if (metaScore(meta) > metaScore(best)) best = meta
+    } catch {
+      // this proxy failed — try the next one
+    }
   }
+
+  return best
 }
 
 export async function fetchTitle(url) {

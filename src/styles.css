@@ -781,6 +781,11 @@ h3 {
   color: var(--accent-strong);
 }
 
+.field-hint {
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+}
+
 .field input {
   background: var(--bg);
   border: 1px solid var(--border);
