@@ -31,15 +31,17 @@ function resolveUrl(base, candidate) {
 
 function extractMetaContent(html, keys) {
   for (const key of keys) {
-    const patterns = [
-      new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]+content=["']([^"']+)["']`, 'i'),
-      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${key}["']`, 'i'),
-    ]
+    // Grab the whole <meta> tag referencing this key (attribute order agnostic)…
+    const tag = html.match(
+      new RegExp(`<meta\\b[^>]*\\b(?:property|name)=["']${key}["'][^>]*>`, 'i'),
+    )?.[0]
+    if (!tag) continue
 
-    for (const pattern of patterns) {
-      const match = html.match(pattern)
-      if (match?.[1]) return decodeEntities(match[1].trim())
-    }
+    // …then read its content value, matching the quote style so an apostrophe or
+    // quote inside the value doesn't truncate it (e.g. The 'lost boarding pass'…).
+    const content = tag.match(/\bcontent=(?:"([^"]*)"|'([^']*)')/i)
+    const value = content?.[1] ?? content?.[2]
+    if (value) return decodeEntities(value.trim())
   }
 
   return ''
@@ -182,4 +184,42 @@ export function deleteLocalReading(id) {
   const next = loadLocalReadings().filter((reading) => reading.id !== id)
   saveLocalReadings(next)
   return next
+}
+
+// The documented data/readings.json schema (no runtime-only id/source fields).
+const EXPORT_FIELDS = ['date', 'url', 'title', 'hero', 'description', 'tags', 'note']
+
+// Clean readings into JSON ready to paste into data/readings.json — drops the
+// runtime-only `id`/`source` fields and keeps just the documented schema.
+export function serializeReadings(readings) {
+  const cleaned = readings.map((reading) => {
+    const out = {}
+    for (const key of EXPORT_FIELDS) {
+      if (reading[key] !== undefined) out[key] = reading[key]
+    }
+    return out
+  })
+  return JSON.stringify(cleaned, null, 2)
+}
+
+// Merge an imported JSON array into localStorage (dedupe by date|url), returning
+// the new local list. Throws on invalid JSON or a non-array payload.
+export function importLocalReadings(json) {
+  const parsed = JSON.parse(json)
+  if (!Array.isArray(parsed)) throw new Error('Expected a JSON array of readings.')
+
+  const current = loadLocalReadings()
+  const seen = new Set(current.map(readingKey))
+  const merged = [...current]
+
+  for (const entry of parsed) {
+    if (!entry || typeof entry.date !== 'string' || typeof entry.url !== 'string') continue
+    const key = readingKey(entry)
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.push({ ...entry, id: entry.id ?? newId() })
+  }
+
+  saveLocalReadings(merged)
+  return merged
 }

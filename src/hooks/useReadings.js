@@ -3,6 +3,7 @@ import baseReadings from '../../data/readings.json'
 import {
   addLocalReading,
   deleteLocalReading,
+  importLocalReadings,
   loadLocalReadings,
   mergeReadings,
   updateLocalReading,
@@ -28,5 +29,13 @@ export function useReadings() {
     setLocalReadings(deleteLocalReading(id))
   }, [])
 
-  return { readings, addReading, updateReading, deleteReading }
+  // Merges imported JSON into localStorage; returns the new local count. Throws
+  // on invalid input so the caller can surface the error.
+  const importReadings = useCallback((json) => {
+    const next = importLocalReadings(json)
+    setLocalReadings(next)
+    return next.length
+  }, [])
+
+  return { readings, addReading, updateReading, deleteReading, importReadings }
 }

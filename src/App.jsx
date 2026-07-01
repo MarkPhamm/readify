@@ -3,6 +3,7 @@ import NavBar from './components/NavBar'
 import Modal from './components/Modal'
 import StatsBar from './components/StatsBar'
 import ReadingForm from './components/ReadingForm'
+import DataManager from './components/DataManager'
 import StreakCalendar from './components/StreakCalendar'
 import ReadingTrend from './components/ReadingTrend'
 import Filters from './components/Filters'
@@ -25,8 +26,9 @@ export default function App() {
   const [activeTag, setActiveTag] = useState(null)
   const [query, setQuery] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
+  const [dataOpen, setDataOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const { readings, addReading, updateReading, deleteReading } = useReadings()
+  const { readings, addReading, updateReading, deleteReading, importReadings } = useReadings()
 
   const stats = useMemo(
     () => ({
@@ -73,7 +75,7 @@ export default function App() {
 
   return (
     <>
-      <NavBar onAddClick={openAdd} />
+      <NavBar onAddClick={openAdd} onDataClick={() => setDataOpen(true)} />
 
       <main className="app">
         <section className="hero-panel">
@@ -113,6 +115,10 @@ export default function App() {
           onSubmit={handleSubmit}
           onSubmitted={closeModal}
         />
+      </Modal>
+
+      <Modal open={dataOpen} onClose={() => setDataOpen(false)} title="Sync & data">
+        <DataManager readings={readings} onImport={importReadings} />
       </Modal>
     </>
   )
