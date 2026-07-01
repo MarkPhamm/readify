@@ -1,11 +1,6 @@
-const STORAGE_KEY = 'readify-readings'
+export { formatDate } from './dates'
 
-export function formatDate(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+const STORAGE_KEY = 'readify-readings'
 
 export function isValidUrl(value) {
   try {
@@ -104,15 +99,29 @@ function readingKey(reading) {
   return `${reading.date}|${reading.url}`
 }
 
+// Stable id for a reading. New entries get a random id; legacy entries stored
+// before ids existed fall back to their natural date|url key so edit/delete
+// still target the right row.
+export function newId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return `id-${Date.now()}-${Math.round(Math.random() * 1e9)}`
+}
+
+function withId(reading) {
+  return reading.id ? reading : { ...reading, id: readingKey(reading) }
+}
+
 export function mergeReadings(base, local) {
   const seen = new Set()
   const merged = []
 
-  for (const reading of [...base, ...local]) {
-    const key = readingKey(reading)
-    if (seen.has(key)) continue
-    seen.add(key)
-    merged.push(reading)
+  for (const [source, list] of [['base', base], ['local', local]]) {
+    for (const reading of list) {
+      const key = readingKey(reading)
+      if (seen.has(key)) continue
+      seen.add(key)
+      merged.push({ ...withId(reading), source })
+    }
   }
 
   return merged
@@ -123,7 +132,8 @@ export function loadLocalReadings() {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(withId)
   } catch {
     return []
   }
@@ -135,7 +145,22 @@ export function saveLocalReadings(readings) {
 
 export function addLocalReading(entry) {
   const current = loadLocalReadings()
-  const next = [...current, entry]
+  const next = [...current, { ...entry, id: entry.id ?? newId() }]
+  saveLocalReadings(next)
+  return next
+}
+
+export function updateLocalReading(id, patch) {
+  const current = loadLocalReadings()
+  const next = current.map((reading) =>
+    reading.id === id ? { ...reading, ...patch, id } : reading,
+  )
+  saveLocalReadings(next)
+  return next
+}
+
+export function deleteLocalReading(id) {
+  const next = loadLocalReadings().filter((reading) => reading.id !== id)
   saveLocalReadings(next)
   return next
 }

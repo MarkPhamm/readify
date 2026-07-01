@@ -1,4 +1,5 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
+import ReadingCard from './ReadingCard'
 
 function monthLabel(dateStr) {
   const [year, month] = dateStr.split('-').map(Number)
@@ -20,12 +21,16 @@ function groupByMonth(readings) {
   return [...groups.entries()].sort((a, b) => b[0].localeCompare(a[0]))
 }
 
-export default function ReadingList({ readings }) {
+export default function ReadingList({ readings, filtered = false, onEdit, onDelete }) {
   if (readings.length === 0) {
     return (
       <section className="panel reading-list">
         <h2 className="panel-title">Timeline</h2>
-        <p className="empty-state">No readings match this filter.</p>
+        <p className="empty-state">
+          {filtered
+            ? 'No readings match your search or filter.'
+            : 'No readings yet — add your first with the “Add reading” button.'}
+        </p>
       </section>
     )
   }
@@ -41,40 +46,12 @@ export default function ReadingList({ readings }) {
           <ul className="card-grid">
             <AnimatePresence mode="popLayout">
               {items.map((reading) => (
-                <motion.li
-                  key={`${reading.date}-${reading.url}`}
-                  className="reading-card"
-                  layout
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <a className="card-link" href={reading.url} target="_blank" rel="noreferrer">
-                    {reading.hero ? (
-                      <img className="card-hero" src={reading.hero} alt="" loading="lazy" />
-                    ) : (
-                      <div className="card-hero placeholder" />
-                    )}
-                    <div className="card-body">
-                      <span className="card-date">{reading.date}</span>
-                      <span className="card-title">{reading.title || reading.url}</span>
-                      {reading.description ? (
-                        <p className="card-description">{reading.description}</p>
-                      ) : null}
-                    </div>
-                  </a>
-                  {reading.note ? <p className="card-note">{reading.note}</p> : null}
-                  {(reading.tags ?? []).length > 0 ? (
-                    <div className="card-tags">
-                      {reading.tags.map((tag) => (
-                        <span key={tag} className="timeline-tag">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </motion.li>
+                <ReadingCard
+                  key={reading.id}
+                  reading={reading}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
               ))}
             </AnimatePresence>
           </ul>

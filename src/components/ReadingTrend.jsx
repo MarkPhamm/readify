@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { dailySeries } from '../lib/stats'
+import { buildSmoothPath, dayNumber, makeTicks } from '../lib/chart'
+import { useElementWidth } from '../hooks/useElementWidth'
 
 const RANGES = [
   { label: '30D', days: 30 },
@@ -9,85 +11,6 @@ const RANGES = [
 
 const HEIGHT = 300
 const PADDING = { top: 46, right: 20, bottom: 48, left: 48 }
-
-function useElementWidth() {
-  const ref = useRef(null)
-  const [width, setWidth] = useState(0)
-
-  useEffect(() => {
-    const element = ref.current
-    if (!element) return undefined
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setWidth(entry.contentRect.width)
-      }
-    })
-
-    observer.observe(element)
-    setWidth(element.clientWidth)
-
-    return () => observer.disconnect()
-  }, [])
-
-  return [ref, width]
-}
-
-function dayNumber(dateStr) {
-  return String(Number(dateStr.split('-')[2]))
-}
-
-function makeTicks(max) {
-  const step = max <= 6 ? 1 : Math.ceil(max / 5)
-  const ticks = []
-  for (let value = 0; value <= max; value += step) ticks.push(value)
-  if (ticks[ticks.length - 1] !== max) ticks.push(max)
-  return ticks
-}
-
-// Monotone cubic interpolation (curveMonotoneX) — smooth like GitHub's
-// activity graph and guaranteed not to overshoot below 0 or above peaks.
-function buildSmoothPath(points) {
-  const n = points.length
-  if (n === 0) return ''
-  if (n === 1) return `M ${points[0].x} ${points[0].y}`
-
-  const xs = points.map((point) => point.x)
-  const ys = points.map((point) => point.y)
-  const dx = []
-  const slope = []
-
-  for (let i = 0; i < n - 1; i += 1) {
-    dx[i] = xs[i + 1] - xs[i]
-    slope[i] = (ys[i + 1] - ys[i]) / (dx[i] || 1)
-  }
-
-  const tangent = new Array(n)
-  tangent[0] = slope[0]
-  tangent[n - 1] = slope[n - 2]
-
-  for (let i = 1; i < n - 1; i += 1) {
-    if (slope[i - 1] * slope[i] <= 0) {
-      tangent[i] = 0
-    } else {
-      const w1 = 2 * dx[i] + dx[i - 1]
-      const w2 = dx[i] + 2 * dx[i - 1]
-      tangent[i] = (w1 + w2) / (w1 / slope[i - 1] + w2 / slope[i])
-    }
-  }
-
-  let path = `M ${xs[0]} ${ys[0]}`
-  for (let i = 0; i < n - 1; i += 1) {
-    const h = dx[i]
-    const cp1x = xs[i] + h / 3
-    const cp1y = ys[i] + (tangent[i] * h) / 3
-    const cp2x = xs[i + 1] - h / 3
-    const cp2y = ys[i + 1] - (tangent[i + 1] * h) / 3
-    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${xs[i + 1]} ${ys[i + 1]}`
-  }
-
-  return path
-}
 
 export default function ReadingTrend({ readings }) {
   const [days, setDays] = useState(30)
@@ -133,6 +56,9 @@ export default function ReadingTrend({ readings }) {
     setHover(clamped)
   }
 
+  // Keep the tooltip anchor inside the chart so it never spills off the edges.
+  const tooltipLeft = hovered ? Math.min(width - 72, Math.max(72, hovered.x)) : 0
+
   return (
     <motion.section
       className="panel graph-panel"
@@ -141,12 +67,13 @@ export default function ReadingTrend({ readings }) {
       transition={{ duration: 0.5, delay: 0.25 }}
     >
       <div className="trend-head">
-        <div className="range-toggle">
+        <div className="range-toggle" role="group" aria-label="Trend range">
           {RANGES.map((range) => (
             <button
               key={range.days}
               type="button"
               className={`range-btn ${days === range.days ? 'active' : ''}`}
+              aria-pressed={days === range.days}
               onClick={() => setDays(range.days)}
             >
               {range.label}
@@ -161,13 +88,15 @@ export default function ReadingTrend({ readings }) {
             className="trend-svg"
             width={width}
             height={HEIGHT}
-            onMouseMove={handleMove}
-            onMouseLeave={() => setHover(null)}
+            role="img"
+            aria-label={`Reading graph: ${total} reads in the last ${days} days`}
+            onPointerMove={handleMove}
+            onPointerLeave={() => setHover(null)}
           >
             <defs>
               <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#7fb5e6" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="#7fb5e6" stopOpacity="0" />
+                <stop offset="0%" className="trend-fill-top" />
+                <stop offset="100%" className="trend-fill-bottom" />
               </linearGradient>
             </defs>
 
@@ -285,7 +214,7 @@ export default function ReadingTrend({ readings }) {
           <div
             className="trend-tooltip"
             style={{
-              left: `${hovered.x}px`,
+              left: `${tooltipLeft}px`,
               top: `${hovered.y}px`,
             }}
           >

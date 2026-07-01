@@ -2,6 +2,15 @@ import { useMemo } from 'react'
 import { ActivityCalendar } from 'react-activity-calendar'
 import { motion } from 'framer-motion'
 import { byDay } from '../lib/stats'
+import { CALENDAR_LEVELS } from '../lib/palette'
+
+// Deterministic 0–0.29s stagger derived from the date string, so blocks fade in
+// with a stable, non-jittery wave (no Math.random re-rolling on every render).
+function staggerDelay(dateStr) {
+  let sum = 0
+  for (let i = 0; i < dateStr.length; i += 1) sum += dateStr.charCodeAt(i)
+  return (sum % 50) * 0.006
+}
 
 function formatTooltip(date, entries) {
   if (!entries || entries.length === 0) {
@@ -32,8 +41,8 @@ export default function StreakCalendar({ readings, calendarData }) {
           blockMargin={4}
           fontSize={12}
           theme={{
-            light: ['#262d3a', '#34507a', '#3f6db0', '#4f8fd6', '#73b2f0'],
-            dark: ['#262d3a', '#34507a', '#3f6db0', '#4f8fd6', '#73b2f0'],
+            light: CALENDAR_LEVELS,
+            dark: CALENDAR_LEVELS,
           }}
           colorScheme="dark"
           labels={{
@@ -41,12 +50,15 @@ export default function StreakCalendar({ readings, calendarData }) {
           }}
           renderBlock={(block, activity) => {
             const entries = dayMap.get(activity.date)?.entries ?? []
+            // `block` is the pre-built <rect> element — its geometry/fill live in
+            // block.props, so spread those (not the element itself) onto motion.rect.
             return (
               <motion.rect
-                {...block}
+                key={block.key}
+                {...block.props}
                 initial={{ opacity: 0, scale: 0.6 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2, delay: Math.random() * 0.3 }}
+                transition={{ duration: 0.2, delay: staggerDelay(activity.date) }}
               >
                 <title>{formatTooltip(activity.date, entries)}</title>
               </motion.rect>

@@ -1,27 +1,4 @@
-function parseDate(dateStr) {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
-function formatDate(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function addDays(date, days) {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
-}
-
-function daysBetween(a, b) {
-  const msPerDay = 24 * 60 * 60 * 1000
-  const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())
-  const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
-  return Math.round((utcB - utcA) / msPerDay)
-}
+import { addDays, daysBetween, formatDate, parseDate } from './dates'
 
 export function byDay(readings) {
   const map = new Map()
@@ -170,6 +147,25 @@ export function currentStreak(readings) {
 export function filterByTag(readings, tag) {
   if (!tag) return readings
   return readings.filter((reading) => (reading.tags ?? []).includes(tag))
+}
+
+export function searchReadings(readings, query) {
+  const trimmed = query.trim().toLowerCase()
+  if (!trimmed) return readings
+
+  return readings.filter((reading) => {
+    const haystack = [
+      reading.title,
+      reading.description,
+      reading.note,
+      reading.url,
+      ...(reading.tags ?? []),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+    return haystack.includes(trimmed)
+  })
 }
 
 export function sortReadingsNewestFirst(readings) {

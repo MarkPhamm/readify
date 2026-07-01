@@ -2,8 +2,10 @@ import { useCallback, useMemo, useState } from 'react'
 import baseReadings from '../../data/readings.json'
 import {
   addLocalReading,
+  deleteLocalReading,
   loadLocalReadings,
   mergeReadings,
+  updateLocalReading,
 } from '../lib/readings'
 
 export function useReadings() {
@@ -15,9 +17,16 @@ export function useReadings() {
   )
 
   const addReading = useCallback((entry) => {
-    const next = addLocalReading(entry)
-    setLocalReadings(next)
+    setLocalReadings(addLocalReading(entry))
   }, [])
 
-  return { readings, addReading }
+  const updateReading = useCallback((id, patch) => {
+    setLocalReadings(updateLocalReading(id, patch))
+  }, [])
+
+  const deleteReading = useCallback((id) => {
+    setLocalReadings(deleteLocalReading(id))
+  }, [])
+
+  return { readings, addReading, updateReading, deleteReading }
 }
